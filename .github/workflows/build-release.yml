@@ -21,11 +21,18 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.22"
+          cache: true   # speeds up builds
 
       - name: Set build vars
         run: |
           echo "BUILD_NUMBER=${{ github.run_number }}" >> $GITHUB_ENV
           echo "VERSION=v${{ github.run_number }}" >> $GITHUB_ENV
+
+      # 🔑 IMPORTANT FIX
+      - name: Download & tidy dependencies
+        run: |
+          go mod tidy
+          go mod verify
 
       - name: Build linux-arm64 binary
         run: |
@@ -34,14 +41,14 @@ jobs:
 
       - name: Package artifact
         run: |
-          mkdir dist
+          mkdir -p dist
           zip dist/rpi-dashboard-${{ env.VERSION }}-linux-arm64.zip rpi-dashboard
 
       - name: Upload artifact (Actions)
         uses: actions/upload-artifact@v4
         with:
           name: rpi-dashboard-${{ env.VERSION }}
-          path: dist/*.zip
+          path: dist/rpi-dashboard-${{ env.VERSION }}-linux-arm64.zip
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -56,4 +63,4 @@ jobs:
             **Commit:** ${{ github.sha }}
 
             This release was generated automatically by GitHub Actions.
-          files: dist/*.zip
+          files: dist/rpi-dashboard-${{ env.VERSION }}-linux-arm64.zip
