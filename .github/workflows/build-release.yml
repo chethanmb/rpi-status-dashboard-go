@@ -1,0 +1,59 @@
+name: Build & Release RPi Dashboard
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write   # required to create releases
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Set build vars
+        run: |
+          echo "BUILD_NUMBER=${{ github.run_number }}" >> $GITHUB_ENV
+          echo "VERSION=v${{ github.run_number }}" >> $GITHUB_ENV
+
+      - name: Build linux-arm64 binary
+        run: |
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
+          go build -o rpi-dashboard
+
+      - name: Package artifact
+        run: |
+          mkdir dist
+          zip dist/rpi-dashboard-${{ env.VERSION }}-linux-arm64.zip rpi-dashboard
+
+      - name: Upload artifact (Actions)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpi-dashboard-${{ env.VERSION }}
+          path: dist/*.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.VERSION }}
+          name: RPi Dashboard Build #${{ github.run_number }}
+          body: |
+            🚀 **RPi Dashboard – Automated Build**
+
+            **Build Number:** #${{ github.run_number }}
+            **Target:** linux-arm64 (Raspberry Pi)
+            **Commit:** ${{ github.sha }}
+
+            This release was generated automatically by GitHub Actions.
+          files: dist/*.zip
